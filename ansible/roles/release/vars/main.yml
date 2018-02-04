@@ -1,0 +1,25 @@
+apt_docker_dist: "https://download.docker.com/linux/{{ ansible_distribution|lower }}"
+apt_docker_repo: "deb [arch=amd64] {{ apt_docker_dist }} {{ ansible_distribution_release|lower }} stable" 
+apt_docker_keyserver: "{{ apt_docker_dist }}/gpg"
+apt_docker_fingerprint: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+
+gophish_golang_package: "github.com/gophish/gophish"
+gophish_directory: "/root/go/src/{{ gophish_golang_package }}"
+gophish_windows_32bit: "{{gophish_directory}}/bin/gophish-{{version}}-windows-32bit.zip"
+gophish_windows_64bit: "{{gophish_directory}}/bin/gophish-{{version}}-windows-64bit.zip"
+gophish_linux_32bit: "{{gophish_directory}}/bin/gophish-{{version}}-linux-32bit.zip"
+gophish_linux_64bit: "{{gophish_directory}}/bin/gophish-{{version}}-linux-64bit.zip"
+gophish_osx_32bit: "{{gophish_directory}}/bin/gophish-{{version}}-osx-32bit.zip"
+gophish_osx_64bit: "{{gophish_directory}}/bin/gophish-{{version}}-osx-64bit.zip"
+
+xgo_image: "karalabe/xgo-latest"
+xgo_golang_package: "github.com/karalabe/xgo"
+
+go_tarball: "go1.9.2.linux-amd64.tar.gz"
+go_download_location: "https://dl.google.com/go/{{go_tarball}}"
+go_tarball_checksum: "de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b"
+
+github_token: !vault |
+        $ANSIBLE_VAULT;[redacted]
+
+upload_release: "/usr/local/bin/upload_release.py"

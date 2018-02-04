@@ -1,0 +1,276 @@
+- name: update packages
+  apt:
+    update_cache: yes
+    upgrade: yes
+
+- name: add https apt transport for Docker repository
+  apt:
+    name: apt-transport-https
+    state: present
+
+- name: install docker key
+  apt_key:
+    id: "{{ apt_docker_fingerprint }}"
+    url: "{{ apt_docker_keyserver }}"
+
+- name: add docker repository
+  apt_repository:
+    repo: "{{ apt_docker_repo }}"
+    mode: '644'
+    update_cache: yes
+    state: present
+
+- name: install docker repository
+  apt:
+    name: "docker-ce"
+    state: present
+
+- name: install git
+  apt:
+    name: git
+    state: present
+
+- name: install python/pip
+  apt:
+    name: python-pip
+    state: present
+
+- name: install pygithub
+  command: "pip install git+https://github.com/PyGithub/PyGithub.git@master"
+
+- name: download golang
+  get_url:
+    url: "{{ go_download_location }}"
+    dest: /usr/local/src/{{ go_tarball }}
+    checksum: "sha256:{{ go_tarball_checksum }}"
+
+- name: extract golang tarball
+  unarchive:
+    src: /usr/local/src/{{ go_tarball }}
+    dest: /usr/local
+    copy: no
+
+- name: install docker module
+  pip:
+    name: docker
+
+- name: download the xgo docker image
+  docker_image:
+    name: "{{ xgo_image }}"
+
+- name: clone the xgo helper
+  shell: "/usr/local/go/bin/go get {{ xgo_golang_package }}"
+
+- name: clone the gophish repo
+  shell: "/usr/local/go/bin/go get {{ gophish_golang_package }}"
+
+- name: build gophish
+  docker_container:
+    name: "gophish_build"
+    image: "{{ xgo_image }}"
+    auto_remove: true
+    volumes:
+      - "{{ gophish_directory }}/bin:/build"
+      - "/root/.xgo-cache:/deps-cache:ro"
+    env:
+      TARGETS: "linux/386 linux/amd64 windows/386 windows/amd64 darwin/386 darwin/amd64"
+    command: "github.com/gophish/gophish"
+
+- name: wait for linux 32-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-linux-386"
+
+- name: wait for linux 64-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-linux-amd64"
+
+- name: wait for the windows 32-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-windows-4.0-386.exe"
+
+- name: wait for the windows 64-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-windows-4.0-amd64.exe"
+
+- name: wait for the osx 32-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-darwin-10.6-386"
+
+- name: wait for the osx 64-bit build
+  wait_for:
+    path: "{{ gophish_directory }}/bin/gophish-darwin-10.6-amd64"
+
+- name: packaging linux-32 bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-linux-386 {{ gophish_directory }}/gophish"
+      args:
+        creates: "{{ gophish_directory }}/gophish"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish"
+        dest: "{{ gophish_linux_32bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish"
+        state: absent
+  
+- name: packaging linux-64 bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-linux-amd64 {{ gophish_directory }}/gophish"
+      args:
+        creates: "{{ gophish_directory }}/gophish"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish"
+        dest: "{{ gophish_linux_64bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish"
+        state: absent
+
+- name: packaging windows 32-bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-windows-4.0-386.exe {{ gophish_directory }}/gophish.exe"
+      args:
+        creates: "{{ gophish_directory }}/gophish.exe"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish.exe"
+        dest: "{{ gophish_windows_32bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish.exe"
+        state: absent
+
+- name: packaging windows 64-bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-windows-4.0-amd64.exe {{ gophish_directory }}/gophish.exe"
+      args:
+        creates: "{{ gophish_directory }}/gophish.exe"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish.exe"
+        dest: "{{ gophish_windows_64bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish.exe"
+        state: absent
+
+- name: packaging osx 32-bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-darwin-10.6-386 {{ gophish_directory }}/gophish"
+      args:
+        creates: "{{ gophish_directory }}/gophish"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish"
+        dest: "{{ gophish_osx_32bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish"
+        state: absent
+
+- name: packaging osx 64-bit release
+  block:
+    - command: "cp {{ gophish_directory }}/bin/gophish-darwin-10.6-amd64 {{ gophish_directory }}/gophish"
+      args:
+        creates: "{{ gophish_directory }}/gophish"
+    - archive:
+        path:
+          - "{{ gophish_directory }}/static/js/dist"
+          - "{{ gophish_directory }}/static/js/src/vendor/ckeditor"
+          - "{{ gophish_directory }}/static/css/dist"
+          - "{{ gophish_directory }}/static/images"
+          - "{{ gophish_directory }}/static/font"
+          - "{{ gophish_directory }}/static/db"
+          - "{{ gophish_directory }}/db"
+          - "{{ gophish_directory }}/templates"
+          - "{{ gophish_directory }}/README.md"
+          - "{{ gophish_directory }}/VERSION"
+          - "{{ gophish_directory }}/LICENSE"
+          - "{{ gophish_directory }}/config.json"
+          - "{{ gophish_directory }}/gophish"
+        dest: "{{ gophish_osx_64bit }}"
+        format: zip
+    - file:
+        path: "{{ gophish_directory }}/gophish"
+        state: absent
+
+- name: copy upload release script
+  copy:
+    src: "{{role_path}}/files/upload_release.py"
+    dest: "{{upload_release}}"
+    mode: 0700
+
+- name: upload assets to github release
+  shell: >
+    {{upload_release}} --repo gophish/gophish --version {{ version }} 
+    --assets {{ gophish_windows_32bit }} {{ gophish_windows_64bit }}
+    {{ gophish_linux_32bit }} {{ gophish_linux_64bit }}
+    {{ gophish_osx_32bit}} {{ gophish_osx_64bit }}
+  environment:
+    GITHUB_API_KEY: "{{github_token}}"
+  register:
+    upload
+
+- debug: msg="{{ upload.stdout }}"
